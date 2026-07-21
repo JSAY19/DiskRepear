@@ -1121,126 +1121,176 @@ input[type="checkbox"]:disabled {
 .footer-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   justify-content: flex-end;
   flex: 1 1 320px;
   max-width: 100%;
 }
 
-/* --- footer action buttons (chamfered 3D) --- */
+/* --- footer actions: terminal tool buttons --- */
 
-.act-pill {
+.act-tool {
+  --act: var(--green);
+  --act-fill-hover: rgba(66, 184, 106, 0.12);
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px 22px 11px 16px;
-  min-height: 46px;
-  border: none;
-  cursor: pointer;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 14px 0 10px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%),
+              rgba(0, 0, 0, 0.28);
+  color: var(--text-dim);
   font: inherit;
-  color: var(--text);
-  clip-path: polygon(
-    12px 0, 100% 0,
-    100% calc(100% - 12px), calc(100% - 12px) 100%,
-    0 100%, 0 12px
-  );
-  background: linear-gradient(180deg, #222e28 0%, #161f1a 50%, #101612 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
-    0 3px 0 #0a0f0c,
-    0 5px 14px rgba(0, 0, 0, 0.4);
-  transition: transform 0.1s ease, filter 0.15s ease;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.18s ease;
 }
 
-.act-pill::after {
+.act-tool::before {
   content: '';
   position: absolute;
-  inset: 0;
-  clip-path: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 45%);
-  pointer-events: none;
-}
-
-.act-pill:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-
-.act-pill:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 2px 4px rgba(0, 0, 0, 0.35),
-    0 1px 0 #0a0f0c,
-    0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
-.act-pill:disabled {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--act);
   opacity: 0.35;
-  cursor: default;
-  filter: saturate(0.5);
+  transition: opacity 0.18s ease;
 }
 
-.act-icon {
-  position: relative;
-  z-index: 1;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
+.footer-actions .act-icon {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  color: var(--act);
+  opacity: 0.75;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: opacity 0.18s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease;
 }
 
-.act-icon svg {
-  width: 20px;
-  height: 20px;
+.footer-actions .act-icon svg {
+  width: 15px;
+  height: 15px;
+  overflow: visible;
 }
 
-.act-label {
-  position: relative;
-  z-index: 1;
-  font-size: 12px;
-  letter-spacing: 0.3px;
+.footer-actions .act-label {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  font-weight: 500;
+  line-height: 1;
+  transition: letter-spacing 0.18s ease, color 0.18s ease;
 }
 
-.act-reset {
-  background: linear-gradient(180deg, #1e2a30 0%, #141c22 50%, #0e1418 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
-    0 3px 0 #0a1014,
-    0 5px 14px rgba(0, 0, 0, 0.4);
-  color: #8ec4d0;
+.act-tool:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--act);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%),
+              var(--act-fill-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
-.act-reset .act-icon { color: var(--cyan); }
-
-.act-trash {
-  background: linear-gradient(180deg, #2a2618 0%, #1c1810 50%, #141008 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
-    0 3px 0 #140f08,
-    0 5px 14px rgba(0, 0, 0, 0.4);
-  color: #d4b06a;
+.act-tool:hover:not(:disabled)::before {
+  opacity: 1;
 }
 
-.act-trash .act-icon { color: var(--amber); }
-
-.act-shred {
-  background: linear-gradient(180deg, #2a1818 0%, #1c1010 50%, #140a0a 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.4),
-    0 3px 0 #140808,
-    0 5px 14px rgba(0, 0, 0, 0.45);
-  color: #d08080;
+.act-tool:hover:not(:disabled) .act-icon {
+  opacity: 1;
+  border-color: var(--border-bright);
 }
 
-.act-shred .act-icon { color: var(--red); }
+.act-tool:hover:not(:disabled) .act-label {
+  letter-spacing: 1.5px;
+  color: var(--act);
+}
+
+.act-tool:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition-duration: 0.06s;
+}
+
+.act-tool:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+.act-tool:focus-visible {
+  outline: 1px solid var(--act);
+  outline-offset: 2px;
+}
+
+.act-tool.act-reset {
+  --act: var(--cyan);
+  --act-fill-hover: rgba(74, 154, 170, 0.11);
+}
+
+.act-tool.act-trash {
+  --act: var(--amber);
+  --act-fill-hover: rgba(196, 146, 58, 0.11);
+}
+
+.act-tool.act-shred {
+  --act: var(--red);
+  --act-fill-hover: rgba(196, 74, 74, 0.12);
+}
+
+.act-tool.act-reset:hover:not(:disabled) .act-icon {
+  transform: rotate(-180deg);
+}
+
+.act-trash-lid,
+.act-trash-body {
+  transform-box: fill-box;
+  transform-origin: 12px 6px;
+  transition: transform 0.28s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+
+.act-tool.act-trash:hover:not(:disabled) .act-trash-lid {
+  transform: translateY(-1.5px) rotate(-8deg);
+}
+
+.act-shred-fuse {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  transition: opacity 0.2s ease;
+}
+
+.act-tool.act-shred:hover:not(:disabled) .act-shred-fuse {
+  opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .act-tool,
+  .footer-actions .act-icon,
+  .footer-actions .act-label,
+  .act-trash-lid,
+  .act-trash-body,
+  .act-shred-fuse {
+    transition: none !important;
+  }
+
+  .act-tool:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .act-tool.act-reset:hover:not(:disabled) .act-icon {
+    transform: none;
+  }
+}
 
 /* ===== modal ===== */
 

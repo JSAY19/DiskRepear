@@ -337,9 +337,9 @@ window.addEventListener('pywebviewready', function () {
       <span class="selection-hint" data-i18n="footer.preview">[ просмотр ]</span>
     </div>
     <div class="footer-actions">
-      <button id="btn-clear-sel" type="button" class="act-pill act-reset" disabled>
+      <button id="btn-clear-sel" type="button" class="act-tool act-reset" disabled>
         <span class="act-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 12a8 8 0 0 1 13.4-5.8"/>
             <polyline points="16 3 17.5 6.5 21 8"/>
             <path d="M20 12a8 8 0 0 1-13.4 5.8"/>
@@ -348,21 +348,25 @@ window.addEventListener('pywebviewready', function () {
         </span>
         <span class="act-label" data-i18n="footer.clear">Сброс</span>
       </button>
-      <button id="btn-trash" type="button" class="act-pill act-trash" disabled>
+      <button id="btn-trash" type="button" class="act-tool act-trash" disabled>
         <span class="act-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 7h16"/>
-            <path d="M9 7V5h6v2"/>
-            <path d="M7 7l1 13h8l1-13"/>
-            <path d="M10 11v5M14 11v5"/>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <g class="act-trash-lid">
+              <path d="M4 7h16"/>
+              <path d="M9 7V5h6v2"/>
+            </g>
+            <g class="act-trash-body">
+              <path d="M7 7l1 13h8l1-13"/>
+              <path d="M10 11v5M14 11v5"/>
+            </g>
           </svg>
         </span>
         <span class="act-label" data-i18n="footer.trash">В корзину</span>
       </button>
-      <button id="btn-shred" type="button" class="act-pill act-shred" disabled>
+      <button id="btn-shred" type="button" class="act-tool act-shred" disabled>
         <span class="act-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v4"/>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path class="act-shred-fuse" d="M12 3v4"/>
             <path d="M8 7h8"/>
             <path d="M6 11c0 4 2.5 7 6 7s6-3 6-7"/>
             <path d="M5 21h14"/>
