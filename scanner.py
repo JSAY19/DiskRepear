@@ -10,7 +10,7 @@ import time
 sys.setrecursionlimit(50000)
 
 TOP_FILES_KEEP = 300
-JUNK_KEEP = 500
+JUNK_KEEP = 2000
 MIN_DUP_SIZE = 1
 HASH_CHUNK = 1024 * 1024
 
@@ -370,10 +370,17 @@ class Scanner:
             })
         return result
 
-    def get_junk(self, limit=200):
+    def get_junk(self, limit=None):
+        """Вернуть мусор для UI.
+
+        Счётчики totalCount/totalSize соответствуют списку files (то, что видно
+        и можно удалить), а не «сырому» числу за весь скан.
+        """
         items = sorted(self._junk_heap, key=lambda t: t[0], reverse=True)
+        if limit is not None:
+            items = items[: max(0, int(limit))]
         files = []
-        for size, path, reason, name in items[:limit]:
+        for size, path, reason, name in items:
             if not os.path.exists(path):
                 continue
             files.append({
@@ -384,17 +391,23 @@ class Scanner:
                 'reason': reason,
                 'reasonLabel': JUNK_REASON_LABELS.get(reason, reason),
             })
+        total_size = sum(f['size'] for f in files)
         return {
             'files': files,
-            'totalCount': self._junk_total_count,
-            'totalSize': self._junk_total_size,
-            'shown': len(files),
+            'totalCount': len(files),
+            'totalSize': total_size,
+            'foundCount': self._junk_total_count,
+            'foundSize': self._junk_total_size,
+            'truncated': self._junk_total_count > len(files),
         }
 
-    def get_duplicates(self, limit=80):
+    def get_duplicates(self, limit=None):
         self._prune_duplicate_groups()
+        source = self.duplicate_groups
+        if limit is not None:
+            source = source[: max(0, int(limit))]
         groups = []
-        for g in self.duplicate_groups[:limit]:
+        for g in source:
             groups.append({
                 'hash': g['hash'],
                 'size': g['size'],
@@ -405,12 +418,15 @@ class Scanner:
         total_wasted = sum(g['wasted'] for g in self.duplicate_groups)
         return {
             'groups': groups,
-            'totalGroups': len(self.duplicate_groups),
-            'totalWasted': total_wasted,
+            'totalGroups': len(groups),
+            'allGroups': len(self.duplicate_groups),
+            'totalWasted': sum(g['wasted'] for g in groups),
+            'allWasted': total_wasted,
             'done': self.dup_done,
             'running': self.dup_running,
             'checked': self.dup_checked,
             'total': self.dup_total,
+            'truncated': len(self.duplicate_groups) > len(groups),
         }
 
     def _prune_duplicate_groups(self):
@@ -497,12 +513,20 @@ class Scanner:
     def _forget_aux(self, path):
         norm = os.path.normcase(os.path.normpath(path))
         prefix = norm + os.sep
-        self._junk_heap = [
+        removed_junk = [
             item for item in self._junk_heap
-            if os.path.normcase(item[1]) != norm
-            and not os.path.normcase(item[1]).startswith(prefix)
+            if os.path.normcase(item[1]) == norm
+            or os.path.normcase(item[1]).startswith(prefix)
         ]
-        heapq.heapify(self._junk_heap)
+        if removed_junk:
+            self._junk_heap = [
+                item for item in self._junk_heap
+                if item not in removed_junk
+            ]
+            heapq.heapify(self._junk_heap)
+            for size, _p, _r, _n in removed_junk:
+                self._junk_total_count = max(0, self._junk_total_count - 1)
+                self._junk_total_size = max(0, self._junk_total_size - size)
         for group in self.duplicate_groups:
             group['files'] = [
                 f for f in group['files']

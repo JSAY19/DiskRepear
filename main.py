@@ -37,6 +37,16 @@ SWP_NOSIZE = 0x0001
 SWP_NOZORDER = 0x0004
 
 
+def _win_long_path(path):
+    """Префикс \\\\?\\ для путей длиннее MAX_PATH."""
+    path = os.path.abspath(path)
+    if path.startswith('\\\\?\\'):
+        return path
+    if path.startswith('\\\\'):
+        return '\\\\?\\UNC\\' + path[2:]
+    return '\\\\?\\' + path
+
+
 def _browser_view(window):
     try:
         from webview.platforms import winforms
@@ -253,10 +263,10 @@ class Api:
     def get_stats(self):
         return self._scanner.get_stats()
 
-    def get_junk(self, limit=200):
+    def get_junk(self, limit=None):
         return self._scanner.get_junk(limit)
 
-    def get_duplicates(self, limit=80):
+    def get_duplicates(self, limit=None):
         return self._scanner.get_duplicates(limit)
 
     # ---------- действия с файлами ----------
@@ -267,19 +277,114 @@ class Api:
             path = os.path.normpath(raw)
             info = self._item_info(raw)
             try:
-                if permanent:
-                    if os.path.isdir(path) and not os.path.islink(path):
-                        shutil.rmtree(path)
-                    else:
-                        os.remove(path)
-                else:
-                    send2trash(path)
+                self._delete_path(path, permanent=permanent)
                 deleted.append(info)
             except Exception as exc:
                 failed.append({'path': raw, 'error': str(exc)})
         if deleted:
             self._scanner.forget_paths([d['path'] for d in deleted])
         return {'deleted': deleted, 'failed': failed}
+
+    def _delete_path(self, path, permanent=False):
+        """Удаление с максимальным обходом блокировок (readonly / ACL / long path)."""
+        target = _win_long_path(path)
+        if permanent:
+            if os.path.isdir(path) and not os.path.islink(path):
+                self._rmtree_force(target, path)
+            else:
+                self._unlink_force(target, path)
+        else:
+            try:
+                send2trash(path)
+            except Exception:
+                # Если корзина недоступна — пробуем жёсткое удаление после снятия атрибутов
+                self._prepare_writable(path)
+                send2trash(path)
+
+    def _unlink_force(self, long_path, original):
+        self._prepare_writable(original)
+        try:
+            os.remove(long_path)
+            return
+        except OSError:
+            pass
+        self._take_ownership(original)
+        self._prepare_writable(original)
+        os.remove(long_path)
+
+    def _rmtree_force(self, long_path, original):
+        def _retry(func, p):
+            try:
+                self._prepare_writable(p)
+                func(p)
+            except OSError:
+                self._take_ownership(p)
+                self._prepare_writable(p)
+                func(p)
+
+        def _onerror(func, p, _exc_info):
+            _retry(func, p)
+
+        try:
+            if sys.version_info >= (3, 12):
+                def _onexc(func, p, _exc):
+                    _retry(func, p)
+                shutil.rmtree(long_path, onexc=_onexc)
+            else:
+                shutil.rmtree(long_path, onerror=_onerror)
+            return
+        except OSError:
+            pass
+        self._take_ownership(original)
+        if sys.version_info >= (3, 12):
+            def _onexc(func, p, _exc):
+                _retry(func, p)
+            shutil.rmtree(long_path, onexc=_onexc)
+        else:
+            shutil.rmtree(long_path, onerror=_onerror)
+
+    def _prepare_writable(self, path):
+        """Снять readonly и нормализовать атрибуты файла/папки."""
+        try:
+            import stat as _stat
+            mode = os.stat(path, follow_symlinks=False).st_mode
+            os.chmod(path, mode | _stat.S_IWRITE | _stat.S_IREAD)
+        except OSError:
+            pass
+        if sys.platform == 'win32':
+            try:
+                # FILE_ATTRIBUTE_NORMAL
+                ctypes.windll.kernel32.SetFileAttributesW(str(path), 0x80)
+            except Exception:
+                pass
+
+    def _take_ownership(self, path):
+        """Захват владения и Full Control (нужен уже elevated процесс)."""
+        if sys.platform != 'win32' or not _is_admin():
+            return
+        try:
+            flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            # /r только для каталогов
+            if os.path.isdir(path) and not os.path.islink(path):
+                subprocess.run(
+                    ['takeown', '/f', path, '/r', '/d', 'y'],
+                    check=False, capture_output=True, creationflags=flags,
+                )
+                subprocess.run(
+                    ['icacls', path, '/grant', 'Administrators:F', '/t', '/c', '/q'],
+                    check=False, capture_output=True, creationflags=flags,
+                )
+            else:
+                subprocess.run(
+                    ['takeown', '/f', path],
+                    check=False, capture_output=True, creationflags=flags,
+                )
+                subprocess.run(
+                    ['icacls', path, '/grant', 'Administrators:F', '/c', '/q'],
+                    check=False, capture_output=True, creationflags=flags,
+                )
+        except Exception:
+            pass
 
     def _item_info(self, raw):
         path = os.path.normpath(raw)

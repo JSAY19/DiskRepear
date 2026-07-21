@@ -11,7 +11,7 @@ const state = {
   scanSummary: null,
   topFiles: [],
   junkFiles: [],         // [{path,name,dir,size,reason,reasonLabel}]
-  junkMeta: { totalCount: 0, totalSize: 0 },
+  junkMeta: { totalCount: 0, totalSize: 0, foundCount: 0, truncated: false },
   dupGroups: [],         // [{hash,size,wasted,count,files}]
   dupMeta: { totalGroups: 0, totalWasted: 0, done: false, running: false },
   currentFolder: null,   // ответ get_folder
@@ -261,7 +261,7 @@ async function startScan() {
   clearSelection();
   state.topFiles = [];
   state.junkFiles = [];
-  state.junkMeta = { totalCount: 0, totalSize: 0 };
+  state.junkMeta = { totalCount: 0, totalSize: 0, foundCount: 0, truncated: false };
   state.dupGroups = [];
   state.dupMeta = { totalGroups: 0, totalWasted: 0, done: false, running: false };
   state.currentFolder = null;
@@ -361,11 +361,13 @@ Object.assign(window.App, {
     await openFolder(summary.root);
     await renderStats();
 
-    const junk = await pyApi().get_junk(300);
+    const junk = await pyApi().get_junk();
     state.junkFiles = junk.files || [];
     state.junkMeta = {
       totalCount: junk.totalCount || 0,
       totalSize: junk.totalSize || 0,
+      foundCount: junk.foundCount || 0,
+      truncated: !!junk.truncated,
     };
     $('#junk-filter').disabled = false;
     renderJunk();
@@ -382,16 +384,16 @@ Object.assign(window.App, {
   onDupScanDone(data) {
     state.dupGroups = data.groups || [];
     state.dupMeta = {
-      totalGroups: data.totalGroups || 0,
+      totalGroups: data.totalGroups || state.dupGroups.length,
       totalWasted: data.totalWasted || 0,
       done: true,
       running: false,
     };
-    renderDuplicates();
+    renderDuplicates(data);
     updateHeaderStats();
     setStatus(t('status.dupDone', {
-      groups: fmtNum(data.totalGroups),
-      size: fmtBytes(data.totalWasted),
+      groups: fmtNum(state.dupGroups.length),
+      size: fmtBytes(data.totalWasted || 0),
     }));
   },
 });
@@ -581,6 +583,18 @@ function renderJunk() {
   $('#badge-junk').textContent = meta.totalCount;
   $('#badge-junk').classList.toggle('has-items', meta.totalCount > 0);
 
+  const hint = $('#junk-hint') || document.querySelector('#tab-junk .history-hint');
+  if (hint) {
+    if (meta.truncated && meta.foundCount > meta.totalCount) {
+      hint.textContent = '// ' + t('junk.hintTruncated', {
+        shown: fmtNum(meta.totalCount),
+        found: fmtNum(meta.foundCount),
+      });
+    } else {
+      hint.textContent = '// ' + t('junk.hint');
+    }
+  }
+
   if (!files.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty">// ' +
       (meta.totalCount ? t('empty.notFoundFilter') : t('empty.noData')) +
@@ -617,7 +631,7 @@ function renderDuplicates(data) {
   if (data) {
     state.dupGroups = data.groups || state.dupGroups;
     state.dupMeta = {
-      totalGroups: data.totalGroups ?? state.dupMeta.totalGroups,
+      totalGroups: data.totalGroups ?? state.dupGroups.length,
       totalWasted: data.totalWasted ?? state.dupMeta.totalWasted,
       done: data.done ?? state.dupMeta.done,
       running: data.running ?? state.dupMeta.running,
@@ -628,17 +642,17 @@ function renderDuplicates(data) {
   const meta = state.dupMeta;
   const groups = state.dupGroups;
 
-  $('#dup-groups').textContent = fmtNum(meta.totalGroups);
+  $('#dup-groups').textContent = fmtNum(groups.length);
   $('#dup-wasted').textContent = fmtBytes(meta.totalWasted);
-  $('#badge-dup').textContent = meta.totalGroups;
-  $('#badge-dup').classList.toggle('has-items', meta.totalGroups > 0);
+  $('#badge-dup').textContent = groups.length;
+  $('#badge-dup').classList.toggle('has-items', groups.length > 0);
 
   if (meta.running && !meta.done) {
     $('#dup-status').textContent = '// ' + t('dup.running');
-  } else if (meta.done && !meta.totalGroups) {
+  } else if (meta.done && !groups.length) {
     $('#dup-status').textContent = '// ' + t('dup.none');
   } else if (meta.done) {
-    $('#dup-status').textContent = '// ' + t('dup.found', { n: fmtNum(meta.totalGroups) });
+    $('#dup-status').textContent = '// ' + t('dup.found', { n: fmtNum(groups.length) });
   } else {
     $('#dup-status').textContent = '// ' + t('dup.hintDefault');
   }
@@ -1174,14 +1188,16 @@ async function executeDelete(paths, permanent) {
   }
   await renderStats();
   try {
-    const junk = await pyApi().get_junk(300);
+    const junk = await pyApi().get_junk();
     state.junkFiles = junk.files || [];
     state.junkMeta = {
       totalCount: junk.totalCount || 0,
       totalSize: junk.totalSize || 0,
+      foundCount: junk.foundCount || 0,
+      truncated: !!junk.truncated,
     };
     renderJunk();
-    const dup = await pyApi().get_duplicates(80);
+    const dup = await pyApi().get_duplicates();
     renderDuplicates(dup);
   } catch (_) { /* partial refresh ok */ }
 

@@ -71,6 +71,7 @@ const I18n = (function () {
       'junk.countLabel': 'МУСОРНЫХ ФАЙЛОВ',
       'junk.sizeLabel': 'МОЖНО ОЧИСТИТЬ',
       'junk.hint': '// temp, cache, logs, prefetch, thumbs.db и похожее — проверяйте перед удалением',
+      'junk.hintTruncated': '// в списке {shown} крупнейших из ~{found} найденных при скане',
 
       'dup.groupsLabel': 'ГРУПП ДУБЛЕЙ',
       'dup.wastedLabel': 'ЛИШНИЙ ОБЪЁМ',
@@ -227,6 +228,7 @@ const I18n = (function () {
       'junk.countLabel': 'JUNK FILES',
       'junk.sizeLabel': 'CAN BE CLEARED',
       'junk.hint': '// temp, cache, logs, prefetch, thumbs.db and similar — review before delete',
+      'junk.hintTruncated': '// showing top {shown} of ~{found} found during scan',
 
       'dup.groupsLabel': 'DUPE GROUPS',
       'dup.wastedLabel': 'WASTED SPACE',
