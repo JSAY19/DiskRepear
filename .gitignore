@@ -1,0 +1,21 @@
+# PyInstaller
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+
+# IDE / OS
+.idea/
+.vscode/
+Thumbs.db
+desktop.ini
+
+# Uploads / temp
+uploads/
+*.spec.bak

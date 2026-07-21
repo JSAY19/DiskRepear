@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>DISK://REAPER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script>
+window.App = window.App || {};
+window.addEventListener('pywebviewready', function () {
+  window.__PYWEBVIEW_READY = true;
+  if (window.App.onBridgeReady) window.App.onBridgeReady();
+});
+</script>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div class="scanlines"></div>
+
+<div class="app">
+
+  <!-- ===== CUSTOM TITLE BAR ===== -->
+  <div class="titlebar panel">
+    <div class="titlebar-drag pywebview-drag-region">
+      <span class="titlebar-icon">◈</span>
+      <span class="titlebar-title">DISK://REAPER</span>
+      <span class="titlebar-sep">//</span>
+      <span class="titlebar-sub" data-i18n="titlebar.sub">анализатор дискового пространства</span>
+    </div>
+    <div class="titlebar-controls">
+      <button type="button" class="lang-toggle" id="btn-lang" aria-label="Switch language">RU</button>
+      <button type="button" class="titlebar-btn" id="btn-win-min" data-i18n-title="titlebar.min" title="Свернуть">—</button>
+      <button type="button" class="titlebar-btn" id="btn-win-max" data-i18n-title="titlebar.max" title="Развернуть">□</button>
+      <button type="button" class="titlebar-btn titlebar-btn-close" id="btn-win-close" data-i18n-title="titlebar.close" title="Закрыть">✕</button>
+    </div>
+  </div>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header panel">
+    <div class="header-inner">
+      <div class="header-left">
+        <pre class="logo">
+██████╗ ██╗███████╗██╗  ██╗    ██████╗ ███████╗ █████╗ ██████╗ ███████╗██████╗
+██╔══██╗██║██╔════╝██║ ██╔╝    ██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝██╔══██╗
+██║  ██║██║███████╗█████╔╝ ██╗ ██████╔╝█████╗  ███████║██████╔╝█████╗  ██████╔╝
+██║  ██║██║╚════██║██╔═██╗ ╚═╝ ██╔══██╗██╔══╝  ██╔══██║██╔═══╝ ██╔══╝  ██╔══██╗
+██████╔╝██║███████║██║  ██╗    ██║  ██║███████╗██║  ██║██║     ███████╗██║  ██║
+╚═════╝ ╚═╝╚══════╝╚═╝  ╚═╝    ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝╚═╝  ╚═╝</pre>
+        <div class="statusline">
+          <span class="prompt">root@reaper:~$</span>
+          <span id="status-text"></span><span class="cursor">█</span>
+        </div>
+        <div id="api-status" class="api-status">API: connecting...</div>
+      </div>
+      <div class="header-stats">
+        <div class="hstat-grid">
+          <div class="hstat">
+            <span class="hstat-label" data-i18n="hs.target">Цель</span>
+            <span class="hstat-val" id="hs-target" title="">—</span>
+          </div>
+          <div class="hstat">
+            <span class="hstat-label" data-i18n="hs.free">Свободно на диске</span>
+            <span class="hstat-val" id="hs-free">—</span>
+          </div>
+          <div class="hstat">
+            <span class="hstat-label" data-i18n="hs.scan">Последний скан</span>
+            <span class="hstat-val" id="hs-scan">—</span>
+          </div>
+        </div>
+        <div class="hstat-metrics">
+          <div class="hstat-m"><span data-i18n="hs.files">файлов</span><b id="hs-files">—</b></div>
+          <div class="hstat-m"><span data-i18n="hs.size">объём</span><b id="hs-size">—</b></div>
+          <div class="hstat-m"><span data-i18n="hs.junk">мусор</span><b id="hs-junk">—</b></div>
+          <div class="hstat-m"><span data-i18n="hs.dup">дубли</span><b id="hs-dup">—</b></div>
+        </div>
+        <div class="hs-disk">
+          <div class="hs-disk-track"><div class="hs-disk-fill" id="hs-disk-bar"></div></div>
+          <span class="hs-disk-pct" id="hs-disk-pct">—</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar panel">
+      <h2 class="panel-title" data-i18n="sidebar.title">[ ЦЕЛЬ АНАЛИЗА ]</h2>
+      <div id="drives" class="drives"></div>
+      <button id="btn-browse" type="button" class="btn btn-block" data-i18n="btn.browse">&gt;&gt; ВЫБРАТЬ ПАПКУ...</button>
+
+      <div class="target-box">
+        <div class="label" data-i18n="target.label">TARGET:</div>
+        <div id="target-path" class="target-path">—</div>
+        <div class="target-manual">
+          <input id="target-input" class="input" type="text" data-i18n-placeholder="target.placeholder" placeholder="или введите путь: C:\Users\...">
+          <button id="btn-set-target" type="button" class="btn">OK</button>
+        </div>
+      </div>
+
+      <button id="btn-scan" type="button" class="btn btn-primary btn-block" disabled data-i18n="btn.scan">▶ ЗАПУСТИТЬ СКАН</button>
+      <button id="btn-abort" type="button" class="btn btn-danger btn-block hidden" data-i18n="btn.abort">■ ПРЕРВАТЬ</button>
+
+      <div id="scan-live" class="scan-live hidden">
+        <div class="live-row"><span data-i18n="live.files">ФАЙЛОВ:</span><span id="live-files">0</span></div>
+        <div class="live-row"><span data-i18n="live.dirs">ПАПОК:</span><span id="live-dirs">0</span></div>
+        <div class="live-row"><span data-i18n="live.size">ОБЪЁМ:</span><span id="live-size">0 B</span></div>
+        <div class="live-row"><span data-i18n="live.errors">ОШИБОК:</span><span id="live-errors">0</span></div>
+        <div class="live-row"><span data-i18n="live.elapsed">ВРЕМЯ:</span><span id="live-elapsed">0.0s</span></div>
+        <div class="live-current" id="live-current"></div>
+        <div class="progress-strip"><div class="progress-runner"></div></div>
+      </div>
+
+      <div id="scan-summary" class="scan-live hidden">
+        <div class="live-row"><span data-i18n="live.files">ФАЙЛОВ:</span><span id="sum-files">0</span></div>
+        <div class="live-row"><span data-i18n="live.dirs">ПАПОК:</span><span id="sum-dirs">0</span></div>
+        <div class="live-row"><span data-i18n="live.size">ОБЪЁМ:</span><span id="sum-size">0 B</span></div>
+        <div class="live-row"><span data-i18n="live.elapsed">ВРЕМЯ:</span><span id="sum-elapsed">0.0s</span></div>
+      </div>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main panel">
+      <nav class="tabs">
+        <button class="tab active" data-tab="files"><span data-i18n="tab.files">TOP ФАЙЛЫ</span></button>
+        <button class="tab" data-tab="folders"><span data-i18n="tab.folders">ПАПКИ</span></button>
+        <button class="tab" data-tab="stats"><span data-i18n="tab.stats">СТАТИСТИКА</span></button>
+        <button class="tab tab-special" data-tab="junk"><span data-i18n="tab.junk">МУСОР</span> <span class="tab-badge" id="badge-junk">0</span></button>
+        <button class="tab tab-special" data-tab="duplicates"><span data-i18n="tab.dup">ДУБЛИКАТЫ</span> <span class="tab-badge" id="badge-dup">0</span></button>
+        <button class="tab tab-log" data-tab="trash-log"><span data-i18n="tab.trash">В КОРЗИНУ</span> <span class="tab-badge" id="badge-trash">0</span></button>
+        <button class="tab tab-log tab-log-danger" data-tab="shred-log"><span data-i18n="tab.shred">УНИЧТОЖЕНО</span> <span class="tab-badge" id="badge-shred">0</span></button>
+      </nav>
+
+      <!-- TAB: FILES -->
+      <section id="tab-files" class="tab-content active">
+        <div class="toolbar">
+          <input id="file-filter" class="input" type="text"
+                 data-i18n-placeholder="filter.files" placeholder="фильтр: имя или .расширение" disabled>
+          <label class="checkall-label">
+            <input type="checkbox" id="files-check-all"> <span data-i18n="filter.all">все</span>
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table class="table" id="files-table">
+            <thead>
+              <tr>
+                <th class="col-check"></th>
+                <th class="col-num" data-i18n="th.num">#</th>
+                <th data-i18n="th.name">ИМЯ</th>
+                <th data-i18n="th.path">ПУТЬ</th>
+                <th class="col-size" data-i18n="th.size">РАЗМЕР</th>
+                <th class="col-bar"></th>
+                <th class="col-act"></th>
+              </tr>
+            </thead>
+            <tbody id="files-tbody">
+              <tr><td colspan="7" class="empty" data-i18n="empty.noData">// нет данных — запустите сканирование</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB: FOLDERS -->
+      <section id="tab-folders" class="tab-content">
+        <div class="breadcrumb" id="breadcrumb"></div>
+        <div class="table-wrap">
+          <table class="table" id="folders-table">
+            <thead>
+              <tr>
+                <th class="col-check"></th>
+                <th data-i18n="th.name">ИМЯ</th>
+                <th class="col-size" data-i18n="th.size">РАЗМЕР</th>
+                <th class="col-bar"></th>
+                <th class="col-act"></th>
+              </tr>
+            </thead>
+            <tbody id="folders-tbody">
+              <tr><td colspan="5" class="empty">// нет данных — запустите сканирование</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB: STATS -->
+      <section id="tab-stats" class="tab-content">
+        <div id="stats-content" class="stats">
+          <div class="empty">// нет данных — запустите сканирование</div>
+        </div>
+      </section>
+
+      <!-- TAB: JUNK -->
+      <section id="tab-junk" class="tab-content">
+        <div class="history-panel">
+          <div class="history-stats">
+            <div class="history-stat">
+              <div class="history-stat-value" id="junk-count">0</div>
+              <div class="history-stat-label" data-i18n="junk.countLabel">МУСОРНЫХ ФАЙЛОВ</div>
+            </div>
+            <div class="history-stat history-stat-junk">
+              <div class="history-stat-value" id="junk-size">0 B</div>
+              <div class="history-stat-label" data-i18n="junk.sizeLabel">МОЖНО ОЧИСТИТЬ</div>
+            </div>
+          </div>
+          <div class="history-hint" data-i18n="junk.hint">// temp, cache, logs, prefetch, thumbs.db и похожее — проверяйте перед удалением</div>
+          <div class="toolbar">
+            <input id="junk-filter" class="input" type="text" data-i18n-placeholder="filter.junk" placeholder="фильтр по имени или типу" disabled>
+          </div>
+          <div class="table-wrap">
+            <table class="table" id="junk-table">
+              <thead>
+                <tr>
+                  <th class="col-check"></th>
+                  <th data-i18n="th.type">ТИП</th>
+                  <th data-i18n="th.name">ИМЯ</th>
+                  <th data-i18n="th.path">ПУТЬ</th>
+                  <th class="col-size" data-i18n="th.size">РАЗМЕР</th>
+                  <th class="col-act"></th>
+                </tr>
+              </thead>
+              <tbody id="junk-tbody">
+                <tr><td colspan="6" class="empty">// нет данных — запустите сканирование</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: DUPLICATES -->
+      <section id="tab-duplicates" class="tab-content">
+        <div class="history-panel">
+          <div class="history-stats">
+            <div class="history-stat">
+              <div class="history-stat-value" id="dup-groups">0</div>
+              <div class="history-stat-label" data-i18n="dup.groupsLabel">ГРУПП ДУБЛЕЙ</div>
+            </div>
+            <div class="history-stat history-stat-dup">
+              <div class="history-stat-value" id="dup-wasted">0 B</div>
+              <div class="history-stat-label" data-i18n="dup.wastedLabel">ЛИШНИЙ ОБЪЁМ</div>
+            </div>
+          </div>
+          <div id="dup-status" class="history-hint">// после скана ищем одинаковые файлы по хешу MD5</div>
+          <div class="table-wrap">
+            <table class="table" id="dup-table">
+              <thead>
+                <tr>
+                  <th class="col-check"></th>
+                  <th data-i18n="th.group">ГРУППА</th>
+                  <th data-i18n="th.name">ИМЯ</th>
+                  <th data-i18n="th.path">ПУТЬ</th>
+                  <th class="col-size" data-i18n="th.size">РАЗМЕР</th>
+                  <th class="col-act"></th>
+                </tr>
+              </thead>
+              <tbody id="dup-tbody">
+                <tr><td colspan="6" class="empty">// нет данных — запустите сканирование</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: TRASH LOG -->
+      <section id="tab-trash-log" class="tab-content">
+        <div class="history-panel">
+          <div class="history-stats">
+            <div class="history-stat">
+              <div class="history-stat-value" id="trash-log-count">0</div>
+              <div class="history-stat-label" data-i18n="trash.countLabel">ОБЪЕКТОВ</div>
+            </div>
+            <div class="history-stat">
+              <div class="history-stat-value" id="trash-log-size">0 B</div>
+              <div class="history-stat-label" data-i18n="trash.sizeLabel">В КОРЗИНЕ</div>
+            </div>
+          </div>
+          <div class="history-hint" data-i18n="trash.hint">// журнал сессии — восстановить можно из корзины Windows</div>
+          <div class="table-wrap">
+            <table class="table history-table">
+              <thead>
+                <tr>
+                  <th class="col-time" data-i18n="th.time">ВРЕМЯ</th>
+                  <th class="col-type" data-i18n="th.type">ТИП</th>
+                  <th data-i18n="th.name">ИМЯ</th>
+                  <th data-i18n="th.path">ПУТЬ</th>
+                  <th class="col-size" data-i18n="th.size">РАЗМЕР</th>
+                </tr>
+              </thead>
+              <tbody id="trash-log-tbody">
+                <tr><td colspan="5" class="empty">// пока пусто</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: SHRED LOG -->
+      <section id="tab-shred-log" class="tab-content">
+        <div class="history-panel">
+          <div class="history-stats">
+            <div class="history-stat">
+              <div class="history-stat-value" id="shred-log-count">0</div>
+              <div class="history-stat-label" data-i18n="shred.countLabel">УНИЧТОЖЕНО</div>
+            </div>
+            <div class="history-stat history-stat-freed">
+              <div class="history-stat-value" id="shred-log-size">0 B</div>
+              <div class="history-stat-label" data-i18n="shred.sizeLabel">ОСВОБОЖДЕНО</div>
+            </div>
+          </div>
+          <div class="history-hint warn" data-i18n="shred.hint">// журнал сессии — безвозвратное удаление за текущий запуск</div>
+          <div class="table-wrap">
+            <table class="table history-table">
+              <thead>
+                <tr>
+                  <th class="col-time" data-i18n="th.time">ВРЕМЯ</th>
+                  <th class="col-type" data-i18n="th.type">ТИП</th>
+                  <th data-i18n="th.name">ИМЯ</th>
+                  <th data-i18n="th.path">ПУТЬ</th>
+                  <th class="col-size" data-i18n="th.size">РАЗМЕР</th>
+                </tr>
+              </thead>
+              <tbody id="shred-log-tbody">
+                <tr><td colspan="5" class="empty">// пока пусто</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer panel">
+    <div class="selection-info selection-info-clickable" id="sel-info" data-i18n-title="footer.previewTitle" title="Нажмите, чтобы просмотреть выбранное">
+      <span data-i18n="footer.selected">ВЫБРАНО:</span> <span id="sel-count">0</span> <span data-i18n="footer.objects">объект(ов)</span> /
+      <span id="sel-size">0 B</span>
+      <span class="selection-hint" data-i18n="footer.preview">[ просмотр ]</span>
+    </div>
+    <div class="footer-actions">
+      <button id="btn-clear-sel" type="button" class="act-pill act-reset" disabled>
+        <span class="act-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 12a8 8 0 0 1 13.4-5.8"/>
+            <polyline points="16 3 17.5 6.5 21 8"/>
+            <path d="M20 12a8 8 0 0 1-13.4 5.8"/>
+            <polyline points="8 21 6.5 17.5 3 16"/>
+          </svg>
+        </span>
+        <span class="act-label" data-i18n="footer.clear">Сброс</span>
+      </button>
+      <button id="btn-trash" type="button" class="act-pill act-trash" disabled>
+        <span class="act-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7h16"/>
+            <path d="M9 7V5h6v2"/>
+            <path d="M7 7l1 13h8l1-13"/>
+            <path d="M10 11v5M14 11v5"/>
+          </svg>
+        </span>
+        <span class="act-label" data-i18n="footer.trash">В корзину</span>
+      </button>
+      <button id="btn-shred" type="button" class="act-pill act-shred" disabled>
+        <span class="act-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v4"/>
+            <path d="M8 7h8"/>
+            <path d="M6 11c0 4 2.5 7 6 7s6-3 6-7"/>
+            <path d="M5 21h14"/>
+            <path d="M9 21v-2M15 21v-2"/>
+          </svg>
+        </span>
+        <span class="act-label" data-i18n="footer.shred">Уничтожить</span>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== MODAL ===== -->
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal panel modal-delete">
+    <h3 id="modal-title" class="modal-title" data-i18n="modal.title">// ПОДТВЕРЖДЕНИЕ</h3>
+    <div id="modal-body" class="modal-body"></div>
+    <div class="modal-actions">
+      <button id="modal-cancel" type="button" class="btn" data-i18n="modal.cancel">ОТМЕНА</button>
+      <button id="modal-confirm" type="button" class="btn btn-danger">EXECUTE</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
