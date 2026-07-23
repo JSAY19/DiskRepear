@@ -1,5 +1,5 @@
 """DISK://REAPER — анализатор дискового пространства. Точка входа."""
-
+#! file start
 import ctypes
 import json
 import os
